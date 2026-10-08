@@ -1,0 +1,1822 @@
+/* Before — projected clinician screen. Restrained, projector-readable (DEMO.md):
+   white surface, charcoal text, one cool action color, amber for unresolved,
+   red only for genuine danger. One sans family. Motion only on chart change.
+
+   VARIANT A — "Apple clinical". SF-style typographic hierarchy on a tight
+   scale, hairline separators, soft neutral elevation, quiet sentence-case
+   receipts, and generous whitespace. Every body colour clears 4.5:1. */
+
+:root {
+  --surface: #ffffff;
+  --surface-dim: #eef1ef;
+  --ink: #17231f;
+  --ink-soft: #5b6862;
+  --ink-faint: #626d67;
+  --line: #dfe5e1;
+  --line-strong: #c8d2cb;
+  --action: #1e6a52;
+  --action-soft: #e8f2ed;
+  --action-border: #bdd8cb;
+  --amber: #8a5a17;
+  --amber-soft: #fbf1df;
+  --amber-border: #ead3aa;
+  --danger: #b3261e;
+  --ok: #226147;
+  --ok-soft: #e8f5ec;
+  --ok-border: #c6e5d1;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --sans: -apple-system, "SF Pro Text", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  /* --ease is the chart-change choreography; --ease-out is for anything a
+     hand touches, where the first frame must already be moving */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+
+  /* timeline geometry — the card width lives in screen.tsx, which owns collisions */
+  --axis: 52%;
+  --tick-gap: 26px;
+  --lane-gap: 10px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+::selection { background: #cfe5d9; color: #17231f; }
+html { scroll-behavior: smooth; scrollbar-color: #bccbc0 #f2f5f1; scrollbar-width: thin; }
+input, textarea, select { caret-color: var(--action); }
+a { text-underline-offset: 3px; }
+:where(a, button, select, textarea, input, summary):focus-visible { outline: 2px solid var(--action); outline-offset: 4px; }
+.banner.product a.wordmark { text-decoration: none; }
+.brand { display: inline-flex; align-items: center; gap: 9px; font-size: 25px; font-weight: 720; letter-spacing: -.03em; }
+.brand svg, .brand-period { color: var(--action); }
+.brand-period { margin-left: -8px; }
+.evidence-link { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 4px 0; background: none; border: 0; color: var(--action); font-size: 11px; font-weight: 600; cursor: pointer; }
+.evidence-tabs { display: flex; gap: 6px; margin-bottom: 6px; }
+.evidence-tabs .btn { padding: 5px 10px; font-size: 12px; }
+.evidence-tabs .selected { color: var(--action); background: var(--action-soft); border-color: var(--action-border); }
+.mobile-timeline { display: none; }
+.mobile-interval { background: var(--action-soft); color: var(--action); border-radius: 8px; padding: 14px; margin-bottom: 10px; }
+.mobile-interval b { display: block; font-size: 17px; font-weight: 650; }
+.mobile-interval span { font-size: 11px; }
+.drawer.open { max-height: 75dvh; overflow: auto; }
+.drawer-bar:disabled { cursor: default; }
+.toast { z-index: 70; bottom: 54px; }
+.live-setup { min-height: 100dvh; max-width: 1000px; margin: auto; padding: 34px 5%; }
+.live-setup > a { color: var(--ink); text-decoration: none; }
+.live-setup-body { margin-top: 110px; max-width: 660px; }
+.live-setup h1 { font-size: clamp(30px, 4vw, 45px); letter-spacing: -.025em; line-height: 1.15; font-weight: 610; margin-top: 24px; }
+.live-setup-body > p { color: var(--ink-soft); font-size: 16px; line-height: 1.65; margin-top: 20px; }
+.live-status { display: inline-flex; align-items: center; gap: 10px; color: var(--amber); font-size: 13px; }
+.setup-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+.setup-actions .btn { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; padding: 11px 15px; }
+.setup-instructions { margin-top: 55px; border-top: 1px solid var(--line-strong); padding-top: 25px; }
+.setup-instructions h2 { font-size: 16px; font-weight: 600; }
+.setup-instructions p { color: var(--ink-soft); font-size: 13px; line-height: 1.8; margin-top: 10px; }
+.setup-instructions a { display: inline-flex; align-items: center; gap: 10px; color: var(--action); text-decoration: none; margin-top: 18px; font-size: 13px; }
+.setup-instructions code { font-size: 12px; color: var(--ink); }
+.connection-warning { background: var(--amber-soft); color: var(--amber); padding: 10px 26px; font-size: 13px; }
+
+body {
+  font-family: var(--sans);
+  background: var(--surface-dim);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* Every number on this screen is a clock, a duration or an id, and several
+     of them tick. Tabular figures keep the glyph advance constant so nothing
+     twitches on a projector. Proportional figures are opted into, not out of. */
+  font-variant-numeric: tabular-nums;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* ---------- app frame ---------- */
+
+.frame {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  padding-bottom: 41px;
+}
+
+/* ---------- encounter banner ---------- */
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 14px 26px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.banner .patient {
+  font-size: 20px;
+  font-weight: 640;
+  letter-spacing: -0.015em;
+}
+
+.banner .meta {
+  color: var(--ink-soft);
+  font-size: 13px;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.banner .spacer {
+  flex: 1;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 999px;
+  padding: 4px 11px;
+  font-size: 12px;
+  font-weight: 590;
+  letter-spacing: 0.005em;
+  white-space: nowrap;
+}
+
+.pill.synthetic {
+  background: var(--amber-soft);
+  color: var(--amber);
+  border: 1px solid var(--amber-border);
+}
+
+.pill.neuro {
+  background: var(--surface-dim);
+  color: var(--ink-soft);
+  border: 1px solid var(--line);
+}
+
+.pill .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ok);
+}
+
+/* ---------- main split ---------- */
+
+.main {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.stage {
+  flex: 1 1 70%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 26px 10px;
+  gap: 12px;
+}
+
+.rail {
+  flex: 0 0 30%;
+  max-width: 420px;
+  min-width: 330px;
+  border-left: 1px solid var(--line);
+  background: var(--surface);
+  padding: 14px 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ---------- headline state ---------- */
+
+.headline {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.headline .h-title {
+  text-wrap: balance;
+  font-size: 23px;
+  font-weight: 750;
+  letter-spacing: -0.021em;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.headline .h-sub {
+  color: var(--ink-soft);
+  font-size: 14px;
+  max-width: 78ch;
+}
+
+.state-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.state-dot.amber {
+  background: #c2700c;
+}
+
+.state-dot.firm {
+  background: var(--action);
+}
+
+.headline .h-shift {
+  font-size: 15px;
+  color: var(--ink);
+  font-weight: 590;
+}
+
+.headline .h-shift .arrow {
+  color: var(--action);
+}
+
+.headline .h-note {
+  color: var(--ink-soft);
+  font-weight: 450;
+}
+
+/* ---------- timeline ---------- */
+
+.timeline-region {
+  flex: 1;
+  min-height: 0;
+  max-height: 510px;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 26px 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+.tl-canvas {
+  position: relative;
+  flex: 1;
+  min-height: 348px;
+}
+
+.tl-axis {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--axis);
+  height: 1px;
+  background: var(--line-strong);
+}
+
+/* hour marks — quiet reference grid */
+
+.tl-hour {
+  position: absolute;
+  top: var(--axis);
+  transform: translate(-50%, -50%);
+  width: 1px;
+  height: 9px;
+  background: var(--line-strong);
+}
+
+.tl-tick-label {
+  position: absolute;
+  top: calc(var(--axis) + 14px);
+  transform: translateX(-50%);
+  font-size: 12px;
+  color: var(--ink-faint);
+  font-weight: 510;
+  letter-spacing: 0.01em;
+}
+
+/* event ticks — one per event, always on the axis */
+
+.tl-tick {
+  position: absolute;
+  top: var(--axis);
+  transform: translate(-50%, -50%);
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--ink-faint);
+}
+
+.tl-tick.claim {
+  border-color: var(--action);
+}
+
+.tl-tick.amber {
+  border-color: #c2700c;
+}
+
+/* ---------- event card slots ----------
+   Cards live in stacks. A stack holds one card when nothing is near it in
+   time, or several when they would collide. The flex column keeps stacked
+   cards apart vertically; screen.tsx keeps stacks apart horizontally. Cards
+   therefore cannot overlap, and no card needs opacity or scale to hide. */
+
+.ev-stack {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lane-gap);
+}
+
+.ev-stack.below {
+  top: calc(var(--axis) + var(--tick-gap));
+}
+
+.ev-stack.above {
+  bottom: calc(100% - var(--axis) + var(--tick-gap));
+  flex-direction: column-reverse;
+}
+
+/* the leader rail a stacked group hangs from */
+.ev-stack .spine {
+  position: absolute;
+  width: 1px;
+  background: var(--line-strong);
+  border-radius: 1px;
+}
+
+.ev-stack.below .spine {
+  top: calc(-1 * var(--tick-gap));
+  bottom: 0;
+}
+
+.ev-stack.above .spine {
+  top: 0;
+  bottom: calc(-1 * var(--tick-gap));
+}
+
+.ev {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 12px 9px;
+  box-shadow:
+    0 1px 1.5px rgba(23, 35, 31, 0.04),
+    0 6px 16px -6px rgba(23, 35, 31, 0.10);
+}
+
+/* leader lines */
+
+.ev .connector {
+  position: absolute;
+  background: var(--line-strong);
+}
+
+.ev .connector:not(.elbow) {
+  width: 1px;
+}
+
+.ev.below .connector:not(.elbow) {
+  bottom: 100%;
+  height: var(--tick-gap);
+}
+
+.ev.above .connector:not(.elbow) {
+  top: 100%;
+  height: var(--tick-gap);
+}
+
+.ev .connector.elbow {
+  top: 50%;
+  height: 1px;
+}
+
+.ev .connector.elbow.right {
+  left: 100%;
+}
+
+.ev .connector.elbow.left {
+  right: 100%;
+}
+
+.ev .ev-time {
+  font-size: 21px;
+  font-weight: 750;
+  /* large type reads too loose at its natural tracking — tighten it */
+  letter-spacing: -0.018em;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+/* The markers are four different glyphs (● ? ◆ ◇) with four different
+   advances. A fixed centred box makes every clock time in a stack start on
+   the same vertical line whatever marker precedes it. */
+.ev .marker {
+  font-size: 15px;
+  line-height: 1;
+  width: 13px;
+  flex: none;
+  display: inline-flex;
+  justify-content: center;
+}
+
+.ev .ev-label {
+  font-size: 13.5px;
+  font-weight: 650;
+  letter-spacing: -0.004em;
+  margin-top: 2px;
+}
+
+/* Tier 2 — what a clinician actually reads to judge the time. This used to
+   share a size, colour and weight with its own provenance, which buried the
+   one phrase the case turns on. */
+.ev .ev-what {
+  font-size: 12.5px;
+  color: var(--ink);
+  font-weight: 530;
+  margin-top: 3px;
+  line-height: 1.36;
+  text-wrap: pretty;
+}
+
+.ev .ev-what em {
+  font-style: normal;
+  font-weight: 700;
+}
+
+/* Tier 3 — where it came from. Small type wants a touch of positive tracking. */
+.ev .ev-prov {
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  font-weight: 470;
+  letter-spacing: 0.006em;
+  margin-top: 3px;
+  line-height: 1.3;
+}
+
+.ev.amber {
+  border-color: var(--amber-border);
+}
+
+.ev.amber .marker,
+.ev.amber .ev-label {
+  color: var(--amber);
+}
+
+.ev.claim {
+  border-color: var(--action-border);
+}
+
+.ev.claim .marker,
+.ev.claim .ev-label {
+  color: var(--action);
+}
+
+.ev .chiprow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+/* quiet receipts — a tint carries the state, no shouting caps */
+
+.chip {
+  line-height: 1.4;
+  font-size: 11px;
+  font-weight: 590;
+  letter-spacing: 0.012em;
+  border-radius: 6px;
+  padding: 3.5px 7.5px;
+}
+
+.chip.on {
+  background: var(--action-soft);
+  color: var(--action);
+}
+
+.chip.warn {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+.chip.ok {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+/* entrance animation — motion only when chart state changes */
+
+@keyframes ev-enter {
+  from {
+    opacity: 1;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.ev.entering {
+  animation: ev-enter 460ms var(--ease) both;
+}
+
+@keyframes tick-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.72);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.tl-tick.entering {
+  animation: tick-enter 380ms 140ms var(--ease) both;
+}
+
+/* the superseded window — amber for unresolved, painted under the interval so
+   the amber left visible is precisely what the witness evidence took off the
+   table */
+
+.superseded {
+  position: absolute;
+  top: calc(var(--axis) - 4px);
+  height: 8px;
+  border-radius: 4px;
+  background: var(--amber-soft);
+  border: 1px solid var(--amber-border);
+}
+
+.superseded-label {
+  position: absolute;
+  top: calc(var(--axis) - 24px);
+  transform: translateX(-50%);
+  font-size: 11.5px;
+  font-weight: 620;
+  letter-spacing: 0.006em;
+  color: var(--amber);
+  white-space: nowrap;
+}
+
+.superseded.entering,
+.superseded-label.entering {
+  animation: fade-in 300ms both;
+}
+
+/* interval bar */
+
+.interval {
+  position: absolute;
+  top: calc(var(--axis) - 4px);
+  height: 8px;
+  border-radius: 4px;
+  background: #cfe5d9;
+  border: 1px solid #8fbca6;
+  transform-origin: left center;
+}
+
+@keyframes interval-draw {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.interval.entering {
+  animation: interval-draw 620ms 320ms var(--ease) both;
+}
+
+.interval-label {
+  position: absolute;
+  top: calc(var(--axis) - 26px);
+  transform: translateX(-50%);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--action);
+  white-space: nowrap;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 2px 8px;
+  z-index: 40;
+}
+
+.interval-label .il-sub {
+  font-weight: 450;
+  color: var(--ink-soft);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes label-rise {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 4px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.interval-label.entering {
+  animation: label-rise 320ms 760ms var(--ease) both;
+}
+
+/* ---------- right rail ---------- */
+
+.rail h2 {
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+  font-weight: 640;
+  margin-top: 4px;
+}
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 11px 13px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.card .c-title {
+  font-weight: 620;
+  font-size: 15px;
+  letter-spacing: -0.008em;
+}
+
+.card .c-sub {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.c-sub.state-ok {
+  color: var(--ok);
+  font-weight: 590;
+}
+
+.c-sub.state-amber {
+  color: var(--amber);
+  font-weight: 590;
+}
+
+.btn {
+  appearance: none;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 590;
+  letter-spacing: -0.004em;
+  color: var(--ink);
+  cursor: pointer;
+  transition:
+    background 140ms ease-out,
+    border-color 140ms ease-out,
+    transform 160ms var(--ease-out);
+  text-align: left;
+}
+
+/* touch devices fire :hover on tap, which lights the button up after it has
+   already been pressed */
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover {
+    background: var(--surface-dim);
+  }
+
+  .btn.primary:hover {
+    background: #17553f;
+  }
+
+  .drawer-bar:hover {
+    background: var(--surface-dim);
+  }
+
+  .witness .btn:hover {
+    background: #1d2735;
+  }
+}
+
+.btn.primary {
+  background: var(--action);
+  border-color: var(--action);
+  color: #fff;
+  text-align: center;
+}
+
+
+.btn.quiet {
+  color: var(--ink-soft);
+  font-weight: 510;
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.btn:focus-visible,
+.drawer-bar:focus-visible,
+.brief-edit:focus-visible {
+  outline: 2px solid var(--action);
+  outline-offset: 2px;
+}
+
+.btn.primary:focus-visible {
+  outline-color: var(--ink);
+}
+
+.gate-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  font-size: 13.5px;
+}
+
+.gate-row.done {
+  border-color: var(--ok-border);
+  background: #f4faf6;
+  color: var(--ok);
+  font-weight: 590;
+}
+
+.gate-row .g-mark {
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  flex: none;
+}
+
+.gate-row.done .g-mark {
+  border-color: var(--ok);
+  background: var(--ok);
+  color: #fff;
+}
+
+.gate-row button {
+  margin-left: auto;
+}
+
+.gate-row .btn {
+  padding: 5px 10px;
+  font-size: 12.5px;
+}
+
+/* ---------- live transcript ----------
+   The transcript is the audience's only evidence that the interview is real,
+   so it gets a speaker column rather than a run-on grey block: names hang in
+   a fixed gutter, and the words line up in one measure down the right. */
+
+.transcript {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.t-live {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--action);
+  margin-left: 4px;
+  vertical-align: 1px;
+}
+
+.captions {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  max-height: 140px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+/* role lives on a data attribute, not a class: `witness` is already a
+   full-page selector in this stylesheet and a .witness modifier here inherits
+   a 100vh dark background. */
+.t-turn {
+  display: grid;
+  grid-template-columns: 46px 1fr;
+  gap: 9px;
+  align-items: baseline;
+}
+
+.captions .who {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: right;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.t-turn[data-role="agent"] .who {
+  color: var(--action);
+}
+
+.t-turn[data-role="witness"] .who {
+  color: var(--ink);
+}
+
+.t-turn[data-role="witness"] .t-text {
+  color: var(--ink);
+  font-weight: 530;
+}
+
+/* the transcript is still being written — one hairline caret says so */
+.t-caret {
+  display: inline-block;
+  width: 2px;
+  height: 0.95em;
+  background: var(--action);
+  margin-left: 3px;
+  vertical-align: -2px;
+  animation: t-blink 1100ms steps(1, end) infinite;
+}
+
+@keyframes t-blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  50.01%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.review-card {
+  border-color: var(--action-border);
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(23, 35, 31, 0.05);
+  animation: fade-in 360ms both;
+}
+
+.review-card .c-title {
+  color: var(--action);
+}
+
+/* ---------- evidence drawer ---------- */
+
+.drawer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.drawer.open {
+  box-shadow: 0 -10px 30px rgba(23, 35, 31, 0.10);
+}
+
+.drawer-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 26px;
+  background: none;
+  border: none;
+  font-size: 12px;
+  font-weight: 640;
+  color: var(--ink-soft);
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transition: background 140ms ease-out;
+}
+
+.drawer-bar .hint {
+  font-weight: 450;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+.drawer-bar .caret {
+  margin-left: auto;
+  transition: transform 200ms ease-out;
+}
+
+.drawer.open .caret {
+  transform: rotate(180deg);
+}
+
+.drawer-body {
+  display: none;
+  padding: 6px 26px 20px;
+  gap: 28px;
+}
+
+.drawer.open .drawer-body {
+  display: flex;
+}
+
+.drawer-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.drawer-col.grow {
+  flex: 1;
+}
+
+.d-label {
+  font-size: 11px;
+  font-weight: 640;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.d-quote {
+  font-size: 16px;
+  font-weight: 560;
+  line-height: 1.4;
+  letter-spacing: -0.008em;
+}
+
+.d-quote::before {
+  content: "\201C";
+  color: var(--action);
+}
+
+.d-quote::after {
+  content: "\201D";
+  color: var(--action);
+}
+
+.d-line {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.d-line b {
+  color: var(--ink);
+  font-weight: 590;
+}
+
+.d-ids {
+  font-size: 12px;
+  color: var(--ink-soft);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.d-ids a {
+  color: var(--action);
+  text-decoration: none;
+}
+
+.drawer-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 7px;
+}
+
+/* ---------- witness page ---------- */
+
+.witness {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  background: #10151c;
+  color: #e8edf3;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.witness .w-hospital {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9fb0c3;
+  font-weight: 640;
+}
+
+.witness .w-title {
+  font-size: 26px;
+  font-weight: 640;
+  letter-spacing: -0.02em;
+}
+
+.witness .w-orb {
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  border: 3px solid #2c3a4d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.witness .w-orb .core {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: #1156d6;
+  transition: transform 90ms linear;
+}
+
+.witness .w-orb.listening .core {
+  background: #2e9e5b;
+}
+
+.witness .w-status {
+  font-size: 15px;
+  color: #9fb0c3;
+}
+
+.witness .w-captions {
+  max-width: 640px;
+  min-height: 84px;
+  font-size: 16px;
+  color: #cdd8e4;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.witness .w-captions .who {
+  color: #8fa2b6;
+  font-weight: 640;
+  margin-right: 6px;
+}
+
+.witness .w-readback {
+  max-width: 640px;
+  border: 1px solid #2c3a4d;
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  background: #161d27;
+  font-size: 15px;
+  color: #e8edf3;
+}
+
+.witness .w-controls {
+  display: flex;
+  gap: 12px;
+}
+
+.witness .btn {
+  background: #161d27;
+  border-color: #2c3a4d;
+  color: #e8edf3;
+}
+
+
+.witness .w-disclosure {
+  max-width: 560px;
+  font-size: 12.5px;
+  color: #8fa2b6;
+  line-height: 1.5;
+}
+
+/* ---------- index ---------- */
+
+.index-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+
+.index-page a {
+  color: var(--action);
+  font-size: 17px;
+  font-weight: 590;
+}
+
+.toast {
+  position: fixed;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  padding: 10px 16px;
+  font-size: 14px;
+  z-index: 50;
+  animation: fade-in 200ms both;
+}
+
+/* ---------- kickoff panel + enriched gates + review rows ---------- */
+
+.kickoff {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.brief-edit {
+  width: 100%;
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  background: var(--surface-dim);
+  resize: vertical;
+}
+
+.brief-edit:focus-visible {
+  border-color: var(--action-border);
+}
+
+.gate-row.tall {
+  align-items: flex-start;
+  padding: 10px;
+}
+
+.gate-row .g-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.gate-row .g-label {
+  font-weight: 590;
+  font-size: 13.5px;
+}
+
+.gate-row .g-sub {
+  font-size: 12px;
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+
+.gate-row.done .g-label {
+  color: var(--ok);
+}
+
+.review-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  background: var(--surface);
+}
+
+.review-row .rr-time {
+  font-size: 16px;
+  font-weight: 640;
+  letter-spacing: -0.015em;
+}
+
+.review-row .rr-kind {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.review-row .rr-btn {
+  padding: 6px 14px;
+  font-size: 13px;
+}
+
+.review-row .rr-done {
+  font-size: 12px;
+  font-weight: 640;
+  color: var(--ok);
+}
+
+.review-secondary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.review-secondary .btn {
+  padding: 6px 10px;
+  font-size: 12.5px;
+}
+
+/* ---------- reduced motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .ev.entering,
+  .superseded.entering,
+  .superseded-label.entering,
+  .tl-tick.entering,
+  .interval.entering,
+  .interval-label.entering,
+  .review-card,
+  .toast {
+    animation: none;
+  }
+
+  .cd-tile.live .cd-dot::after,
+  .t-caret {
+    animation: none;
+  }
+
+  .drawer-bar .caret,
+  .btn,
+  .w-orb .core {
+    transition: none;
+  }
+}
+
+@media (max-width: 1100px) {
+  .live-frame .b-place, .live-frame .b-meta, .live-frame .pill.neuro { display: none; }
+  .live-frame .timeline-region { overflow: auto; max-height: none; }
+  .live-frame .tl-canvas { min-height: 780px; --axis: 49%; }
+}
+@media (max-width: 760px) {
+  .live-frame { height: auto; min-height: 100dvh; overflow: visible; padding-bottom: 0; }
+  .live-frame .banner { flex-wrap: wrap; padding: 15px 16px; gap: 10px; }
+  .live-frame .b-mrn, .live-frame .pill.code { display: none; }
+  .live-frame .banner .spacer { display: none; }
+  .live-frame .main { flex-direction: column; }
+  .live-frame .stage { padding: 24px 16px; gap: 20px; }
+  .live-frame .establishing { flex-wrap: wrap; padding: 10px; gap: 10px; }
+  .live-frame .est-ago { display: none; }
+  .live-frame .timeline-region { height: auto; min-height: 0; padding: 16px; }
+  .live-frame .tl-canvas { display: none; }
+  .mobile-timeline { display: flex; flex-direction: column; gap: 12px; }
+  .mobile-timeline .connector { display: none; }
+  .live-frame .rail { max-width: none; min-width: 0; flex: auto; overflow: visible; border-left: 0; border-top: 1px solid var(--line); padding: 24px 16px; }
+  .live-frame .drawer { position: sticky; }
+  .drawer.open .drawer-body { flex-direction: column; gap: 22px; padding: 6px 20px 25px; }
+  .drawer-bar { padding: 12px 16px; }
+  .drawer-bar .hint { font-size: 11px; }
+  .d-ids { overflow-wrap: anywhere; }
+  .live-setup-body { margin-top: 60px; }
+  .setup-actions { align-items: stretch; flex-direction: column; }
+  .setup-actions .btn { justify-content: center; }
+  .witness .w-title { font-size: 23px; }
+  .console { padding: 25px 16px; }
+  .console .sec-head { flex-wrap: wrap; }
+  .console .eps .p { white-space: normal; overflow-wrap: anywhere; }
+}
+
+/* ---------- operator console (/test) ---------- */
+
+.console {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 36px 28px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.console header h1 {
+  font-size: 26px;
+  font-weight: 640;
+  letter-spacing: -0.021em;
+}
+
+.console header p,
+.console .note {
+  color: var(--ink-soft);
+  font-size: 14px;
+  max-width: 72ch;
+  margin-top: 4px;
+}
+
+.console section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.console h2 {
+  font-size: 16px;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+}
+
+.console .sec-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.console .sec-head h2 {
+  flex: 1;
+}
+
+.console .checks {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.console .checks li {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  background: var(--surface);
+  font-size: 13.5px;
+}
+
+.console .checks li.ok {
+  border-color: var(--ok-border);
+  background: #f4faf6;
+}
+
+.console .checks li.bad {
+  border-color: var(--amber-border);
+  background: var(--amber-soft);
+}
+
+.console .checks .mark {
+  font-weight: 700;
+  width: 16px;
+  flex: none;
+}
+
+.console .checks li.ok .mark {
+  color: var(--ok);
+}
+
+.console .checks li.bad .mark {
+  color: var(--amber);
+}
+
+.console .checks .body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.console .checks .detail {
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  word-break: break-word;
+}
+
+.console .score {
+  font-size: 17px;
+  font-weight: 640;
+}
+
+.console .score.ok {
+  color: var(--ok);
+}
+
+.console .score.bad {
+  color: var(--amber);
+}
+
+.console .eps {
+  border-collapse: collapse;
+  font-size: 13px;
+  width: 100%;
+}
+
+.console .eps td {
+  border-top: 1px solid var(--line);
+  padding: 7px 10px 7px 0;
+  vertical-align: top;
+}
+
+.console .eps .m {
+  font-weight: 640;
+  color: var(--ink-faint);
+  width: 52px;
+}
+
+.console .eps .p {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  color: var(--action);
+  white-space: nowrap;
+  padding-right: 16px;
+}
+
+.console .eps .w {
+  color: var(--ink-soft);
+}
+
+.console .manual {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  font-size: 14px;
+  color: var(--ink-soft);
+  max-width: 78ch;
+}
+
+.console .manual b {
+  color: var(--ink);
+}
+
+.console a {
+  color: var(--action);
+}
+
+/* ---------- product banner ---------- */
+
+.banner.product {
+  background: #172a24;
+  border-bottom: none;
+  color: #f2f5f9;
+  gap: 14px;
+}
+
+.banner.product .wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 19px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.banner.product .wordmark svg {
+  color: #78aa94;
+}
+
+.banner.product .b-divider {
+  width: 1px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.banner.product .b-patient {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.banner.product .b-name {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.016em;
+}
+
+.banner.product .b-mrn {
+  font-size: 12.5px;
+  color: #aebdb7;
+}
+
+.banner.product .pill.code {
+  background: #213c32;
+  color: #d9ebe3;
+  border: none;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.banner.product .pill.code::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #72c49a;
+  box-shadow: 0 0 0 3px rgba(114, 196, 154, 0.14);
+}
+
+/* where the patient physically is — a stroke code is run by people walking to
+   a bay, and the screen should say which one */
+.banner.product .b-place {
+  font-size: 12.5px;
+  color: #aebdb7;
+  letter-spacing: 0.004em;
+  white-space: nowrap;
+}
+
+.banner.product .b-place b {
+  color: #eaf2ee;
+  font-weight: 640;
+}
+
+.banner.product .b-meta {
+  font-size: 12.5px;
+  color: #aebdb7;
+}
+
+.banner.product .pill.neuro.dark {
+  background: rgba(255, 255, 255, 0.07);
+  color: #cfdcd5;
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.banner.product .pill.synthetic.dark {
+  background: rgba(236, 180, 88, 0.14);
+  color: #ecc98f;
+  border-color: rgba(236, 180, 88, 0.35);
+}
+
+/* ---------- establishing strip ---------- */
+
+.establishing {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  width: fit-content;
+}
+
+.est-label {
+  font-size: 11px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-faint);
+  margin-right: 2px;
+}
+
+.est-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.est-what {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+
+.est-value {
+  font-size: 16px;
+  font-weight: 750;
+  letter-spacing: -0.014em;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.est-basis {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.006em;
+}
+
+.est-slot.soft .est-value {
+  color: var(--amber);
+}
+
+.est-slot.soft .est-basis {
+  color: var(--amber);
+}
+
+.est-slot.firm .est-value {
+  color: var(--action);
+}
+
+.est-slot.firm .est-basis {
+  color: var(--action);
+}
+
+.est-arrow {
+  color: var(--ink-faint);
+  font-size: 16px;
+}
+
+.est-gap {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--action);
+  background: var(--action-soft);
+  border: 1px solid var(--action-border);
+  border-radius: 999px;
+  padding: 3px 11px;
+  margin-left: 4px;
+}
+
+/* ---------- call dock ---------- */
+/* The dock is the only proof on screen that a real call is happening right
+   now. It sits on the dim tone so it reads as its own strip instead of
+   merging into the white evidence drawer below it. */
+
+.call-dock {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  padding: 11px 26px;
+  background: var(--surface-dim);
+  border-top: 1px solid var(--line);
+  overflow-x: auto;
+}
+
+.call-dock .cd-label {
+  font-size: 11px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  align-self: center;
+  margin-right: 4px;
+}
+
+.cd-tile {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-size: 13px;
+  max-width: 520px;
+  background: var(--surface);
+  box-shadow: 0 1px 1.5px rgba(23, 35, 31, 0.04);
+}
+
+.cd-dot {
+  position: relative;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+  flex: none;
+}
+
+.cd-tile.live {
+  border-color: var(--action-border);
+  background: var(--action-soft);
+  box-shadow: 0 1px 2px rgba(30, 106, 82, 0.10);
+}
+
+.cd-tile.live .cd-dot {
+  background: var(--action);
+}
+
+/* a live call is a state worth one repeating signal — the only loop on the
+   screen, and it stops for reduced motion */
+.cd-tile.live .cd-dot::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 1.5px solid var(--action);
+  animation: cd-pulse 1900ms ease-out infinite;
+}
+
+@keyframes cd-pulse {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.cd-tile.ring .cd-dot {
+  background: #a2620a;
+}
+
+.cd-tile.ring {
+  border-color: var(--amber-border);
+  background: var(--amber-soft);
+}
+
+.cd-tile.done .cd-dot {
+  background: var(--ok);
+}
+
+.cd-tile.hand .cd-dot {
+  background: #a2620a;
+}
+
+.cd-who {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.cd-who b {
+  font-size: 14px;
+  font-weight: 660;
+  letter-spacing: -0.012em;
+}
+
+.cd-role {
+  font-size: 11.5px;
+  letter-spacing: 0.006em;
+  color: var(--ink-faint);
+}
+
+.cd-status {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.075em;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.cd-tile.live .cd-status {
+  color: var(--action);
+}
+
+/* the running timer is the "this is really happening" signal — give it the
+   presence of a clock, not a caption */
+.cd-time {
+  font-size: 15px;
+  font-weight: 750;
+  letter-spacing: -0.012em;
+}
+
+.cd-snippet {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  border-left: 1px solid var(--action-border);
+  padding-left: 11px;
+}
+
+.est-ago {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.006em;
+  color: var(--ink-soft);
+}

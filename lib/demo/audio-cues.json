@@ -1,0 +1,47 @@
+{
+  "source": "Synthetic Deepgram TTS · vesta / apollo",
+  "duration": 59.23,
+  "cues": [
+    {
+      "turn": 0,
+      "start": 3,
+      "end": 7.96
+    },
+    {
+      "turn": 1,
+      "start": 8.61,
+      "end": 11.85
+    },
+    {
+      "turn": 2,
+      "start": 12.5,
+      "end": 15.54
+    },
+    {
+      "turn": 3,
+      "start": 16.19,
+      "end": 20.63
+    },
+    {
+      "turn": 4,
+      "start": 21.28,
+      "end": 26.52
+    },
+    {
+      "turn": 5,
+      "start": 27.17,
+      "end": 31.37
+    },
+    {
+      "turn": 6,
+      "start": 32.02,
+      "end": 46.46
+    },
+    {
+      "turn": 7,
+      "start": 47.11,
+      "end": 49.23
+    }
+  ],
+  "scriptSha256": "91b56722733996112772cc8072c80a842687165f55f0a5a88d009c048fa25e35"
+}

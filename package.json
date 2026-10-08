@@ -1,0 +1,50 @@
+{
+  "name": "before",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Before — voice conversations into source-linked clinical timeline evidence. Interactive demo and live Deepgram + Medplum workflow.",
+  "scripts": {
+    "dev": "next dev -p 3200",
+    "demo": "next dev -p 3200",
+    "build": "next build",
+    "start": "next start -p 3200",
+    "test": "vitest run",
+    "lint": "eslint lib app scripts tests",
+    "typecheck": "tsc --noEmit",
+    "seed": "tsx scripts/seed-demo.ts",
+    "verify": "tsx scripts/verify-demo.ts",
+    "tunnel": "cloudflared tunnel --url http://localhost:3200",
+    "vapi:assistant": "tsx scripts/vapi-setup.ts assistant",
+    "vapi:inbound": "tsx scripts/vapi-setup.ts inbound",
+    "vapi:import-twilio": "tsx scripts/vapi-setup.ts import-twilio",
+    "vapi:call": "tsx scripts/vapi-setup.ts call",
+    "ana": "tsx scripts/voice-driver.ts daughter",
+    "vapi:recording": "tsx scripts/vapi-setup.ts recording",
+    "demo:live": "bash scripts/demo-up.sh",
+    "check": "pnpm lint && pnpm typecheck && pnpm test"
+  },
+  "dependencies": {
+    "@medplum/core": "^5.1.0",
+    "@medplum/fhirtypes": "^5.1.0",
+    "next": "^16.4.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.30.0",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "dotenv": "^17.0.0",
+    "eslint": "^9.30.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.0",
+    "typescript-eslint": "^8.35.0",
+    "vitest": "^3.2.0"
+  },
+  "packageManager": "pnpm@11.12.0",
+  "engines": {
+    "node": ">=24"
+  }
+}

@@ -1,0 +1,33 @@
+# dependencies
+node_modules/
+
+# next.js
+.next/
+out/
+next-env.d.ts
+
+# environment secrets
+.env*
+!.env.example
+
+# hosting account metadata
+.vercel/
+.netlify/
+
+# witness recording takes; publish only the assembled demo audio
+recordings/*.wav
+recordings/*.m4a
+recordings/*.mp3
+recordings/*.aiff
+recordings/*.caf
+
+# build + test output
+*.tsbuildinfo
+coverage/
+run-evidence/
+
+# os
+.DS_Store
+
+# subagent worktrees
+.claude/worktrees/

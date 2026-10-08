@@ -1,0 +1,10 @@
+<svg width="234" height="56" viewBox="0 0 234 56" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Before">
+  <!-- The mark is the product: a timeline, an uncertain relayed event (hollow),
+       and a witness-confirmed direct event (filled). -->
+  <g stroke="#1e6a52" fill="none">
+    <line x1="3" y1="28" x2="65" y2="28" stroke-width="4" opacity="0.4" />
+    <circle cx="16" cy="28" r="7.5" stroke-width="4" />
+    <circle cx="49" cy="28" r="8.5" fill="#1e6a52" stroke="none" />
+  </g>
+  <text x="80" y="41" font-family="-apple-system, 'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="38" font-weight="700" letter-spacing="-0.8" fill="#172a24">Before</text>
+</svg>
