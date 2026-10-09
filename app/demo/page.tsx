@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EvidenceDrawer } from "../clinician/screen";
 import { Icon, Wordmark } from "../components/icons";
-import { AUDIO_CUES, CHAPTERS, DEMO_DURATION, SPOUSE_TURNS, chapterAt, demoMoment, demoPayloadAt, demoSession, DEMO_WITNESSES, witnessForEvent, witnessesAt, type DemoWitnessKey } from "../../lib/demo/scenario";
+import { AUDIO_CUES, CHAPTERS, DEMO_DURATION, FULL_CHART_AT, SPOUSE_TURNS, chapterAt, demoMoment, demoPayloadAt, demoSession, DEMO_WITNESSES, witnessForEvent, witnessesAt, type DemoWitnessKey } from "../../lib/demo/scenario";
 import { validateClaim } from "../../lib/claims/validate";
 import { EvidenceTimeline } from "./evidence-timeline";
 import { EvidenceLab } from "./evidence-lab";
@@ -19,6 +19,7 @@ function Quote({ text }: { text: string }) {
 
 export default function DemoPage() {
   const [seconds, setSeconds] = useState(0);
+  const [started, setStarted] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sound, setSound] = useState(true);
@@ -52,7 +53,7 @@ export default function DemoPage() {
     startingRef.current = false;
     const audio = audioRef.current;
     if (audio) { audio.pause(); audio.currentTime = position; }
-    setPlaying(false); setLoading(false); setSeconds(position); setAcceptedIds([]); setDrawerOpen(false); setTranscriptSource("spouse");
+    setPlaying(false); setLoading(false); setSeconds(position); setStarted(position > 0); setAcceptedIds([]); setDrawerOpen(false); setTranscriptSource("spouse");
   }, []);
   const seek = useCallback((index: number) => moveTo(CHAPTERS[Math.max(0, Math.min(CHAPTERS.length - 1, index))].at), [moveTo]);
   const togglePlayback = useCallback(async () => {
@@ -62,6 +63,7 @@ export default function DemoPage() {
       audioRef.current?.pause(); setPlaying(false); setLoading(false); return;
     }
     const position = complete ? 0 : positionRef.current;
+    setStarted(true);
     if (complete) { positionRef.current = 0; setSeconds(0); setAcceptedIds([]); setDrawerOpen(false); setTranscriptSource("spouse"); }
     if (captionOnly) { setPlaying(true); return; }
     const audio = audioRef.current;
@@ -144,14 +146,20 @@ export default function DemoPage() {
       <span className="demo-mode">Guided demo</span>
       <div className="demo-tools"><button onClick={share} aria-label="Copy demo link" title="Copy demo link"><Icon name="link" /></button><button onClick={fullscreen} aria-label="Toggle full screen" title="Full screen"><Icon name="expand" /></button></div>
     </header>
-    <div className="demo-case"><h1>Rosa M.</h1><span>Unable to speak</span></div>
+    <div className="demo-case" aria-live="polite">
+      {started ? <><h1>{seconds >= FULL_CHART_AT ? "Five accounts. One timeline." : moment.parallel ? "Luis wasn’t the only call." : "Rosa M."}</h1><span>{seconds >= FULL_CHART_AT ? "Ready for the doctor’s review." : moment.parallel ? "Four more agents were gathering Rosa’s story." : "Suspected stroke. Unable to speak."}</span></> : <span>Rosa M. is arriving at the hospital.</span>}
+    </div>
     <div className="demo-experience">
-      <CallScene seconds={seconds} parallel={moment.parallel} task={agentTask} speaker={!turn ? "EMS handoff" : turn.role === "assistant" ? "Before" : "Luis"} quote={turn ? <Quote text={turn.content} /> : "“She was last seen normal at six.”"} quoteText={turn?.content ?? "EMS handoff"} speaking={speaking} longQuote={!!turn && turn.content.length > 180} direct={moment.direct} anchored={moment.anchored} confirmed={moment.confirmed} onInspect={inspect} />
-      <EvidenceTimeline data={data} anchored={moment.anchored} direct={moment.direct} parallel={moment.parallel} onInspect={inspect} />
+      {!started ? <section className="story-opening" aria-labelledby="story-heading">
+        <h1 id="story-heading">She can’t tell you what happened.</h1>
+        <p>A stroke can take away someone’s speech. Fast treatment matters. But the people who know Rosa’s last normal moments aren’t in the room.</p>
+        <p className="story-promise">Before calls them. Their answers build the doctor’s timeline.</p>
+      </section> : <><CallScene seconds={seconds} parallel={moment.parallel} task={agentTask} speaker={!turn ? "EMS handoff" : turn.role === "assistant" ? "Before" : "Luis"} quote={turn ? <Quote text={turn.content} /> : "“She was last seen normal at six.”"} quoteText={turn?.content ?? "EMS handoff"} speaking={speaking} longQuote={!!turn && turn.content.length > 180} direct={moment.direct} anchored={moment.anchored} confirmed={moment.confirmed} onInspect={inspect} />
+      <EvidenceTimeline data={data} anchored={moment.anchored} direct={moment.direct} parallel={moment.parallel} onInspect={inspect} /></>}
     </div>
     <div className="demo-player">
       <div className="mobile-window" aria-live="polite"><span>{data.timeline.interval ? parseExactTime(data.timeline.interval.startIso)!.spokenClock : "6:00"} <Icon name="arrow" size={12} /> {data.timeline.interval ? parseExactTime(data.timeline.interval.endIso)!.spokenClock : "9:10"}</span><b>{data.timeline.interval ? `${data.timeline.interval.minutes} min, preliminary` : "Unresolved"}</b></div>
-      <div className="player-main"><button className="play-button" onClick={() => void togglePlayback()} aria-label={loading ? "Cancel audio loading" : undefined}><Icon name={playing || loading ? "pause" : complete ? "reset" : "play"} size={18} />{loading ? "Loading…" : playing ? "Pause" : complete ? "Replay" : seconds === 0 ? "Play with sound" : "Resume"}</button><button className="restart-button" aria-label="Restart demo" title="Restart demo" onClick={() => moveTo(0)}><Icon name="reset" size={18} /></button><button className="sound-button" aria-label={sound && !captionOnly ? "Mute sound" : "Enable sound"} aria-pressed={sound && !captionOnly} disabled={captionOnly} onClick={() => setSound((value) => !value)}><Icon name={sound ? "volume" : "muted"} size={18} /></button><span className="player-time">{formatTime(seconds)} <span>/ {formatTime(DEMO_DURATION)}</span></span><button className="chapters-toggle" aria-expanded={chaptersOpen} aria-controls="chapter-navigation" onClick={() => setChaptersOpen((value) => !value)}>Chapters <Icon name="chevron" size={14} /></button></div>
+      <div className="player-main"><button className="play-button" onClick={() => void togglePlayback()} aria-label={loading ? "Cancel audio loading" : undefined}><Icon name={playing || loading ? "pause" : complete ? "reset" : "play"} size={18} />{loading ? "Loading…" : playing ? "Pause" : complete ? "Replay" : !started ? "Meet Rosa’s witnesses" : seconds === 0 ? "Play with sound" : "Resume"}</button><button className="restart-button" aria-label="Restart demo" title="Restart demo" onClick={() => moveTo(0)}><Icon name="reset" size={18} /></button><button className="sound-button" aria-label={sound && !captionOnly ? "Mute sound" : "Enable sound"} aria-pressed={sound && !captionOnly} disabled={captionOnly} onClick={() => setSound((value) => !value)}><Icon name={sound ? "volume" : "muted"} size={18} /></button><span className="player-time">{formatTime(seconds)} <span>/ {formatTime(DEMO_DURATION)}</span></span><button className="chapters-toggle" aria-expanded={chaptersOpen} aria-controls="chapter-navigation" onClick={() => setChaptersOpen((value) => !value)}>Chapters <Icon name="chevron" size={14} /></button></div>
       {audioError && <div className="audio-error" role="alert">The bundled audio couldn’t play.<button onClick={() => { setCaptionOnly(true); setAudioError(false); setPlaying(true); }}>Continue with captions</button><button onClick={() => { audioRef.current?.load(); void togglePlayback(); }}>Retry audio</button></div>}
       <input className="playback-scrubber" type="range" min="0" max={DEMO_DURATION} step="0.1" value={seconds} aria-label="Demo playback position" aria-valuetext={`${formatTime(seconds)} of ${formatTime(DEMO_DURATION)}, ${CHAPTERS[chapter].short}`} onChange={(event) => moveTo(Number(event.target.value))} style={{ "--progress": `${seconds / DEMO_DURATION * 100}%` } as React.CSSProperties} />
       <nav id="chapter-navigation" className={`chapter-nav ${chaptersOpen ? "is-open" : ""}`} aria-label="Demo chapters">{CHAPTERS.map((item, index) => <button key={item.short} aria-label={`${index + 1}. ${item.short}`} aria-current={chapter === index ? "step" : undefined} className={chapter === index ? "current" : ""} onClick={() => { seek(index); setChaptersOpen(false); }}>{item.short}</button>)}</nav>
@@ -166,6 +174,7 @@ export default function DemoPage() {
         </div>
       </details>
       <details className="demo-about"><summary>About this demo <Icon name="chevron" size={16} /></summary><div className="about-body">
+        <p>Stroke can cause sudden difficulty speaking. Fast treatment can reduce brain damage. This is why the missing history matters: the doctor needs to know when Rosa was last observed at her usual baseline. <a href="https://www.cdc.gov/stroke/signs-symptoms/index.html">CDC: stroke signs and symptoms</a>.</p>
         <p>Before’s voice agent interviews witnesses. The doctor’s view receives source-linked evidence for clinical review.</p>
         <p>This synthetic case uses prerecorded Deepgram TTS voices and the live workflow’s validator. The parallel-call ending is a scripted concept with five synthetic accounts. Every account passes the same validator and keeps its own transcript; no additional live calls are placed. Discovery is separate from witnessed onset.</p>
         <p>Reviews are simulated locally. Evidence remains preliminary. The demo makes no chart writes; FHIR references are illustrative.</p>

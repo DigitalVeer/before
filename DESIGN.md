@@ -23,3 +23,9 @@ The guided demo is labeled prerecorded, synthetic, and local. It never points il
 Luis’s “normal” and “about lunch” phrases share emphasis with the doctor’s draft evidence. Draft observations appear only after the recorded witness turn completes; confirmation still gates the structured timeline. The final authored moment pulls the original call back into a compact lane and reveals four other callers. Each result lands in the same source list and carries its own inspectable transcript.
 
 The pullback uses a bounded shared-element transform on the original quote, with a short clipped entrance for the additional call lanes. Evidence arrivals follow the audio clock and remain seekable. Routine controls stay immediate. No animation dependency or background polling is needed; reduced motion keeps the full narrative state without the spatial move.
+
+## Guided story
+
+The opening gives Rosa’s missing history one central focus before playback. Starting the audio replaces it with the agent and doctor views. The reveal names the four other callers, then ends with five source-linked accounts ready for the doctor’s review. This is a concept demonstration, not a claim of improved clinical outcomes. The medical premise is sourced in About this demo and SHOWCASE.md.
+
+Both panels keep a viewport-aware fixed height during playback. The chart reserves five chronological source slots when the parallel reveal begins; each account fills its own position without moving the player or stretching either panel. Compact layouts keep the source region scrollable when required.

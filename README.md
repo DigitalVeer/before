@@ -108,3 +108,5 @@ The evidence fixture, bundled audio, and four extra call accounts are synthetic.
 ## Credits
 
 Originally built by Veer Singh and [Will](https://github.com/willzhang100) at the YC × Medplum hackathon. See [CREDITS.md](CREDITS.md) for the voice and evidence integrations.
+
+For a short presentation script and the sourced clinical premise, see [Showing Before](SHOWCASE.md).
