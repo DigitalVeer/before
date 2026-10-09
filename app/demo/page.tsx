@@ -20,6 +20,7 @@ function Quote({ text }: { text: string }) {
 export default function DemoPage() {
   const [seconds, setSeconds] = useState(0);
   const [started, setStarted] = useState(false);
+  const [ready, setReady] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sound, setSound] = useState(true);
@@ -78,6 +79,8 @@ export default function DemoPage() {
     } catch { if (request === requestRef.current) { setAudioError(true); setPlaying(false); } }
     finally { if (request === requestRef.current) setLoading(false); }
   }, [playing, loading, complete, captionOnly]);
+
+  useEffect(() => { setReady(true); }, []);
 
   useEffect(() => {
     if (!playing) return;
@@ -144,7 +147,7 @@ export default function DemoPage() {
     <header className="demo-topbar">
       <Link href="/" aria-label="Before home"><Wordmark /></Link>
       <span className="demo-mode">Guided demo</span>
-      <div className="demo-tools"><button onClick={share} aria-label="Copy demo link" title="Copy demo link"><Icon name="link" /></button><button onClick={fullscreen} aria-label="Toggle full screen" title="Full screen"><Icon name="expand" /></button></div>
+      <div className="demo-tools"><button disabled={!ready} onClick={share} aria-label="Copy demo link" title="Copy demo link"><Icon name="link" /></button><button disabled={!ready} onClick={fullscreen} aria-label="Toggle full screen" title="Full screen"><Icon name="expand" /></button></div>
     </header>
     <div className="demo-case" aria-live="polite">
       {started ? <><h1>{seconds >= FULL_CHART_AT ? "Five accounts. One timeline." : moment.parallel ? "Luis wasn’t the only call." : "Rosa M."}</h1><span>{seconds >= FULL_CHART_AT ? "Ready for the doctor’s review." : moment.parallel ? "Four more agents were gathering Rosa’s story." : "Suspected stroke. Unable to speak."}</span></> : <span>Rosa M. is arriving at the hospital.</span>}
@@ -159,9 +162,9 @@ export default function DemoPage() {
     </div>
     <div className="demo-player">
       <div className="mobile-window" aria-live="polite"><span>{data.timeline.interval ? parseExactTime(data.timeline.interval.startIso)!.spokenClock : "6:00"} <Icon name="arrow" size={12} /> {data.timeline.interval ? parseExactTime(data.timeline.interval.endIso)!.spokenClock : "9:10"}</span><b>{data.timeline.interval ? `${data.timeline.interval.minutes} min, preliminary` : "Unresolved"}</b></div>
-      <div className="player-main"><button className="play-button" onClick={() => void togglePlayback()} aria-label={loading ? "Cancel audio loading" : undefined}><Icon name={playing || loading ? "pause" : complete ? "reset" : "play"} size={18} />{loading ? "Loading…" : playing ? "Pause" : complete ? "Replay" : !started ? "Meet Rosa’s witnesses" : seconds === 0 ? "Play with sound" : "Resume"}</button><button className="restart-button" aria-label="Restart demo" title="Restart demo" onClick={() => moveTo(0)}><Icon name="reset" size={18} /></button><button className="sound-button" aria-label={sound && !captionOnly ? "Mute sound" : "Enable sound"} aria-pressed={sound && !captionOnly} disabled={captionOnly} onClick={() => setSound((value) => !value)}><Icon name={sound ? "volume" : "muted"} size={18} /></button><span className="player-time">{formatTime(seconds)} <span>/ {formatTime(DEMO_DURATION)}</span></span><button className="chapters-toggle" aria-expanded={chaptersOpen} aria-controls="chapter-navigation" onClick={() => setChaptersOpen((value) => !value)}>Chapters <Icon name="chevron" size={14} /></button></div>
+      <div className="player-main"><button className="play-button" disabled={!ready} onClick={() => void togglePlayback()} aria-label={loading ? "Cancel audio loading" : undefined}><Icon name={playing || loading ? "pause" : complete ? "reset" : "play"} size={18} />{!ready || loading ? "Loading…" : playing ? "Pause" : complete ? "Replay" : !started ? "Meet Rosa’s witnesses" : seconds === 0 ? "Play with sound" : "Resume"}</button><button className="restart-button" disabled={!ready} aria-label="Restart demo" title="Restart demo" onClick={() => moveTo(0)}><Icon name="reset" size={18} /></button><button className="sound-button" aria-label={sound && !captionOnly ? "Mute sound" : "Enable sound"} aria-pressed={sound && !captionOnly} disabled={!ready || captionOnly} onClick={() => setSound((value) => !value)}><Icon name={sound ? "volume" : "muted"} size={18} /></button><span className="player-time">{formatTime(seconds)} <span>/ {formatTime(DEMO_DURATION)}</span></span><button className="chapters-toggle" disabled={!ready} aria-expanded={chaptersOpen} aria-controls="chapter-navigation" onClick={() => setChaptersOpen((value) => !value)}>Chapters <Icon name="chevron" size={14} /></button></div>
       {audioError && <div className="audio-error" role="alert">The bundled audio couldn’t play.<button onClick={() => { setCaptionOnly(true); setAudioError(false); setPlaying(true); }}>Continue with captions</button><button onClick={() => { audioRef.current?.load(); void togglePlayback(); }}>Retry audio</button></div>}
-      <input className="playback-scrubber" type="range" min="0" max={DEMO_DURATION} step="0.1" value={seconds} aria-label="Demo playback position" aria-valuetext={`${formatTime(seconds)} of ${formatTime(DEMO_DURATION)}, ${CHAPTERS[chapter].short}`} onChange={(event) => moveTo(Number(event.target.value))} style={{ "--progress": `${seconds / DEMO_DURATION * 100}%` } as React.CSSProperties} />
+      <input className="playback-scrubber" disabled={!ready} type="range" min="0" max={DEMO_DURATION} step="0.1" value={seconds} aria-label="Demo playback position" aria-valuetext={`${formatTime(seconds)} of ${formatTime(DEMO_DURATION)}, ${CHAPTERS[chapter].short}`} onChange={(event) => moveTo(Number(event.target.value))} style={{ "--progress": `${seconds / DEMO_DURATION * 100}%` } as React.CSSProperties} />
       <nav id="chapter-navigation" className={`chapter-nav ${chaptersOpen ? "is-open" : ""}`} aria-label="Demo chapters">{CHAPTERS.map((item, index) => <button key={item.short} aria-label={`${index + 1}. ${item.short}`} aria-current={chapter === index ? "step" : undefined} className={chapter === index ? "current" : ""} onClick={() => { seek(index); setChaptersOpen(false); }}>{item.short}</button>)}</nav>
     </div>
     <div className="demo-extras">
